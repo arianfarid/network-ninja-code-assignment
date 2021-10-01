@@ -2,54 +2,42 @@
     <h1 class='text-white text-2xl font-bold text-center p-4 tracking-widest'>
         Mars Rover Photo Query Builder
     </h1>
-    <div class='border border-gray-300 rounded grid grid-cols-3 space-x-2 p-2'>
+    <div class='border border-gray-300 rounded grid grid-cols-3 space-x-4 p-4'>
         <!-- Rovers Display Here -->
         <div v-for='rover in rovers' v-bind:key='rover.id' class=''>
-            <rover-card :rover-data='rover' :is-active='hasActiveRover(rover.id)' @toggle-rover='toggleActiveRover($event)'></rover-card>
+            <rover-card :rover-data='rover' :is-active='hasActiveRover(rover.id)' @toggle-rover='toggleActiveRover($event), resetQueriedPhotos()'></rover-card>
         </div>
-        <!-- Query Date -->
-        <div class='col-start-2 place-self-center m-4'>
-          <!-- min/max dates to help narrow, should be related to rover data -->
-          <input v-if='isActiveRover()' v-model='earthDate' v-on:input='checkValidDate(earthDate)'
-          class='p-4 rounded' type='date'>
-        </div>
-        <div class='col-start-3 place-self-center m-4'>
-          <!-- min/max dates to help narrow, should be related to rover data -->
-          <button v-if='isActiveRover()' v-on:click='submitQuery()'
-          class='bg-none text-white p-4 border border-gray-300
-          hover:border-white hover:border-2 hover:border-white hover:shadow-glow-md
-          active:border-green-300 rounded'>Submit Query</button>
+        <!-- Submit Query -->
+        <div class="col-span-3 w-full flex items-inline items-center">
+          <query-form></query-form>
         </div>
         <!-- Query Error -->
         <transition name='fade'>
-          <div v-if='axiosError'
-          class='text-red-500 top-0 left-0 w-auto bg-red-50 absolute
-          p-1 rounded border border-red-500 text-center
-          transition ease-in-out duration-200 flex flex-inline'>
-            {{ axiosError }}
-            <button v-on:click="removeError()">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 relative" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path class="absolute right-0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
-          </div>
+          <error-card :error='axiosError'></error-card>
         </transition>
     </div>
     <!-- Cameras and photo numbers -->
     <!-- Only show if there are queried results -->
-    <div v-if="queriedPhotos.length > 0" class="flex flex-wrap p-4 place-content-center space-x-1">
-      <button v-for="camera in activeRover[0].cameras" v-bind:key="camera.id"
-    class="bg-none p-1 border border-gray-300
-          text-white text-xs text-center
-          hover:border-white hover:border-2 hover:border-white hover:shadow-glow-md
-          active:border-green-300 rounded">
-        {{ camera.name }}
-      </button>
+    <div v-if="queriedPhotos.photos" class="flex flex-wrap p-4 place-content-center space-x-1">
+      <div class="text-white text-lg text-center w-full">Total Photos {{ queriedPhotos.photos.length }}</div>
+      <div class="text-white">Filter by Camera:</div>
+      <div>
+        <button-camera v-for="camera in activeRover[0].cameras" v-bind:key="camera.id"
+          @toggle-button-camera="toggleCameraFilter($event)"
+          :camera-name="camera.name" :camera-id="camera.id"
+          :is-active='hasActiveCamera(camera.name)' :number-of-photos='numberOfPhotos(camera.name)'
+          class="m-1"
+      ></button-camera>
+      </div>
     </div>
+    <!-- No Photos for that Date -->
+    <transition name='fade'>
+      <error-card :error='noPhotosError'></error-card>
+    </transition>
     <!-- Query Results -->
-    <div v-if="queriedPhotos.length > 0" class='border border-gray-300 rounded grid grid-cols-3 space-x-1 p-2'>
-      <div v-for='photo in queriedPhotos' v-bind:key="photo.id">
-        <img :src='photo.img_src'>
+    <div v-if="queriedPhotos.photos && activeCameraFilters.length > 0" class='border border-gray-300 rounded flex flex-wrap content-center p-2'>
+      <div v-for='photo in queriedPhotos.photos' v-bind:key="photo.id">
+        <card-rover-image v-if="activeCameraFilters.includes(photo.camera.full_name)" :rover="photo"></card-rover-image>
       </div>
     </div>
 </template>
@@ -65,11 +53,19 @@
 }
 </style>
 <script>
+import ButtonCamera from './components/ButtonCamera.vue'
+import CardRoverImage from './components/CardRoverImage.vue'
+import ErrorCard from './components/ErrorCard.vue'
+import QueryForm from './components/QueryForm.vue'
 import RoverCard from './components/RoverCard.vue'
 import { provide, ref } from 'vue'
 export default {
     name: 'App',
     components: {
+        ButtonCamera,
+        CardRoverImage,
+        ErrorCard,
+        QueryForm,
         RoverCard
     },
     setup() {
@@ -77,7 +73,7 @@ export default {
         const API_ADDRESS = 'https://api.nasa.gov/mars-photos/api/v1/rovers/'
         const buildQuery = () => {
           //curiosity/photos?earth_date=2015-6-3&api_key=Yuqv0otgbUO7NKcuzglMmErCjCULIXPYcxOuW1Ka
-          console.log(activeRover.value[0])
+          // console.log(activeRover.value[0])
           return [API_ADDRESS, activeRover.value[0].name, '/photos?earth_date=', earthDate.value, '&api_key=', API_KEY].join('')
         }
         /**
@@ -88,7 +84,7 @@ export default {
         const rovers = [{
                 id: 1,
                 name: 'Curiosity',
-                img: 'curiosity.jpeg',
+                img: 'curiosity1.jpg',
                 cameras: [{
                         id: 1,
                         abbr: 'FHAZ',
@@ -229,6 +225,7 @@ export default {
         const isActiveRover = () => {
           return activeRover.value.length > 0
         }
+        provide('isActiveRover', isActiveRover)
         /**
          * This Concats image folder and image to make image path.
          * Might be useful at some point to have, in case of path changes.
@@ -241,39 +238,28 @@ export default {
         provide('returnFromImageFolder', returnFromImageFolder)
 
         const earthDate = ref('')
-        const checkValidDate = (date) => {
-          // let rawDate = new Date
-          // let offset = theDate.getTimezoneOffset()
-          console.log(date)
-          // if (date)
-        }
+        provide('earthDate', earthDate)
 
-        const queriedPhotos = ref([])
-        // const returnQueriedPhotos = () => {
-        //   // Has a rover been selected? This should even need to display.
-        //   if(typeof activeRover.value[0] === 'undefined') {
-        //     return 'No Rover Selected'
-        //   }
-        //   // If there are no photos for that date
-        //   if (queriedPhotos.value.length === 0 && earthDate.value > 0) {
-        //     return ['No Photos exist for ', activeRover.value[0].name].join('')
-        //   }
-
-        // }
-        /*
-        Submits query, then writes query.
-         */
+        const queriedPhotos = ref({})
         const submitQuery = async () => {
           const axios = await import('axios');
           axios.get(buildQuery())
             .catch((error)=>{
-              console.log(error)
               axiosError.value = nameError(error)
             })
             .then(response => {
-              console.log(response)
-              queriedPhotos.value = response.data.photos
+              if(response.data.photos.length === 0){
+                noPhotosError.value = 'Whoops! No Photos for that Date.'
+              }
+              //limit to first 25 here. 
+              let limitedResponseData = {photos: response.data.photos.slice(0,25)}
+              queriedPhotos.value = limitedResponseData
+
             })
+        }
+        provide('submitQuery', submitQuery)
+        const resetQueriedPhotos = () => {
+          return queriedPhotos.value = ''
         }
         const axiosError = ref('')
         const nameError = (error) => {
@@ -282,41 +268,53 @@ export default {
           }
         }
         const removeError = () => {
-          return axiosError.value = ''
+          noPhotosError.value = ''
+          axiosError.value = ''
         }
+        provide('removeError', removeError)
+        const noPhotosError = ref('')
         /**
          * Array of camera filter IDs
          * @type {Array}
          */
         const cameraFilters = ref([])
-        const toggleCamera = (camera) => {
-          if (cameraFilters.value.map(f => f.id).includes(event.id)) {
-                //then remove it
-                return cameraFilters.value = cameraFilters.value.filter(f => f.id != event.id)
-            //if rover hasn't been toggled yet
-            } else if (!cameraFilters.value.map(f => f.id).includes(event.id)) {
-                //add it (only one rover with this version)
-                return cameraFilters.value = [{
-                    id: event.id,
-                    name: event.name,
-                    cameras: event.cameras,
-                }]
-            }
+        const activeCameraFilters = ref([])
+        const toggleCameraFilter = (event) => {
+          //if it has camera, remove it
+          if (activeCameraFilters.value.includes(event.name)) {
+            return activeCameraFilters.value = activeCameraFilters.value.filter( e => e !== event.name)
+          } else if (!activeCameraFilters.value.includes(event.name)) {
+            return activeCameraFilters.value.push(event.name)
+          }
         }
+        const hasActiveCamera = (camera) => {
+            return activeCameraFilters.value.includes(camera)
+        }
+        const numberOfPhotos = (cameraName) => {
+          // console.log(queriedPhotos.value)
+          // console.log(queriedPhotos.value.photos.map(p => p.camera.full_name  ))
+          return queriedPhotos.value.photos.filter(p => p.camera.full_name == cameraName ).length
+        }
+
         return {
+            activeCameraFilters,
             activeRover,
             axiosError,
             cameraFilters,
-            checkValidDate,
             earthDate,
+            hasActiveCamera,
             hasActiveRover,
             isActiveRover,
+            noPhotosError,
+            numberOfPhotos,
             queriedPhotos,
             // returnQueriedPhotos,
             removeError,
+            resetQueriedPhotos,
             rovers,
             submitQuery,
-            toggleActiveRover
+            toggleActiveRover,
+            toggleCameraFilter
         }
     }
 }
