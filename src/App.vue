@@ -9,7 +9,7 @@
         </div>
         <!-- Submit Query -->
         <div class="col-span-3 w-full flex items-inline items-center">
-          <query-form></query-form>
+          <query-form :rover="activeRover[0]"></query-form>
         </div>
         <!-- Query Error -->
         <transition name='fade'>
@@ -58,7 +58,7 @@ import CardRoverImage from './components/CardRoverImage.vue'
 import ErrorCard from './components/ErrorCard.vue'
 import QueryForm from './components/QueryForm.vue'
 import RoverCard from './components/RoverCard.vue'
-import { provide, ref } from 'vue'
+import { computed, provide, ref } from 'vue'
 export default {
     name: 'App',
     components: {
@@ -72,8 +72,6 @@ export default {
         const API_KEY = 'Yuqv0otgbUO7NKcuzglMmErCjCULIXPYcxOuW1Ka'
         const API_ADDRESS = 'https://api.nasa.gov/mars-photos/api/v1/rovers/'
         const buildQuery = () => {
-          //curiosity/photos?earth_date=2015-6-3&api_key=Yuqv0otgbUO7NKcuzglMmErCjCULIXPYcxOuW1Ka
-          // console.log(activeRover.value[0])
           return [API_ADDRESS, activeRover.value[0].name, '/photos?earth_date=', earthDate.value, '&api_key=', API_KEY].join('')
         }
         /**
@@ -85,6 +83,8 @@ export default {
                 id: 1,
                 name: 'Curiosity',
                 img: 'curiosity1.jpg',
+                min: '2012-08-07',
+                max: '',
                 cameras: [{
                         id: 1,
                         abbr: 'FHAZ',
@@ -126,6 +126,8 @@ export default {
                 id: 2,
                 name: 'Opportunity',
                 img: 'opportunity.jpeg',
+                min: '2004-01-26',
+                max: '2018-06-10',
                 cameras: [{
                         id: 1,
                         abbr: 'FHAZ',
@@ -157,6 +159,8 @@ export default {
                 id: 3,
                 name: 'Spirit',
                 img: 'spirit.jpeg',
+                min: '2004-01-05',
+                max: '2010-03-21',
                 cameras: [{
                         id: 1,
                         abbr: 'FHAZ',
@@ -210,6 +214,8 @@ export default {
                 return activeRover.value = [{
                     id: event.id,
                     name: event.name,
+                    minDate: event.min,
+                    maxDate: event.max,
                     cameras: event.cameras,
                 }]
             }
@@ -225,6 +231,12 @@ export default {
         const isActiveRover = () => {
           return activeRover.value.length > 0
         }
+        const activeRoverMin = computed(() => {
+          return activeRover.value
+        })
+        const activeRoverMax = computed(() => {
+          return activeRover.value
+        })
         provide('isActiveRover', isActiveRover)
         /**
          * This Concats image folder and image to make image path.
@@ -298,6 +310,8 @@ export default {
 
         return {
             activeCameraFilters,
+            activeRoverMin,
+            activeRoverMax,
             activeRover,
             axiosError,
             cameraFilters,

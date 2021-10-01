@@ -1,8 +1,8 @@
 <template>
     <!-- Query Date -->
     <div class='col-start-2 place-self-center m-2'>
-        <!-- min/max dates to help narrow, should be related to rover data -->
-        <input v-if='isActiveRover()' v-model='earthDate' class='p-1 rounded' type='date'>
+        <!-- min/max dates to help narrow date range, should be related to rover data -->
+        <input v-if='isActiveRover()' v-model='earthDate' class='p-1 rounded' type='date' :min="rover.minDate" :max="rover.maxDate">
     </div>
     <div class='col-start-3 place-self-center m-2'>
         <!-- min/max dates to help narrow, should be related to rover data -->
@@ -14,6 +14,9 @@
 <script>
 import { inject } from 'vue'
 export default {
+	props: {
+		rover: Object,
+	},
     setup() {
         const isActiveRover = inject('isActiveRover')
         const earthDate = inject('earthDate')

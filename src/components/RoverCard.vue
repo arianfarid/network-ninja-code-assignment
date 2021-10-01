@@ -24,7 +24,9 @@ export default {
             context.emit("toggleRover", {
                 "id": props.roverData.id,
                 "name": props.roverData.name,
-                "cameras": props.roverData.cameras
+                "cameras": props.roverData.cameras,
+                "min": props.roverData.min,
+                "max": props.roverData.max
             })
         }
         return {
